@@ -35,9 +35,9 @@ Process all the relevant source packages in packages.tsv using create-corpus.pl:
 
 The final output will have a method per line, with the following <TAB> delimited columns:
 
-full class name
-method signature (from bytecode)
-long method signature (from source code)
-comment
-[each byte code separated by a <TAB>...]
+* full class name
+* method signature (from bytecode)
+* long method signature (from source code)
+* comment
+* [each byte code separated by a <TAB>...]
 
