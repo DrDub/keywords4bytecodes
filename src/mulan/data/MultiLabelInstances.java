@@ -403,14 +403,20 @@ public class MultiLabelInstances implements Serializable {
         //TODO: add support for addition of label attributes to modified data set if necessary
 
         LabelsMetaDataImpl newMetaData = (LabelsMetaDataImpl) labelsMetaData.clone();
+        boolean changed = false;
         Set<String> origLabelNames = labelsMetaData.getLabelNames();
         for (String labelName : origLabelNames) {
             if (modifiedDataSet.attribute(labelName) == null) {
+            	changed = true;
                 newMetaData.removeLabelNode(labelName);
             }
         }
-
-        return new MultiLabelInstances(modifiedDataSet, newMetaData);
+        if(changed)
+        	return new MultiLabelInstances(modifiedDataSet, newMetaData);
+        else {
+        	this.dataSet = modifiedDataSet;
+        	return this;
+        }
     }
 
     /**

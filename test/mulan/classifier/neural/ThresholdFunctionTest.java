@@ -30,7 +30,7 @@ public class ThresholdFunctionTest {
 
 	private static final double DOUBLES_EQUAL_DIFF = 0.000001;
 	private static final int NUM_LABELS = 3;
-	private static final double[][] IDEAL_LABELS =	new double[][] {{-1, 1, 1}, 
+	private static final float[][] IDEAL_LABELS =	new float[][] {{-1, 1, 1}, 
 																	{1, -1, -1}, 
 																	{1, -1, 1}, 
 																	{-1, -1, 1}};
@@ -68,12 +68,12 @@ public class ThresholdFunctionTest {
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void testConstructorWithWrongDimensionsOfInputs1(){
-		new ThresholdFunction(new double[3][4], new double[2][4]);
+		new ThresholdFunction(new float[3][4], new double[2][4]);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void testConstructorWithWrongDimensionsOfInputs2(){
-		new ThresholdFunction(new double[3][4], new double[3][3]);
+		new ThresholdFunction(new float[3][4], new double[3][3]);
 	}
 	
 	@Test

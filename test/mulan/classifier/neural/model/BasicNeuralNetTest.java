@@ -39,7 +39,7 @@ public class BasicNeuralNetTest {
 
 	private static final double BIAS = 1;
 	private static final int[] NET_TOPOLOGY = new int[] { 2, 10, 3 };
-	private static final double[] INPUT_PATTERN = new double[] { 1.0, -1.0 };
+	private static final float[] INPUT_PATTERN = new float[] { 1.0f, -1.0f };
 	private Class<ActivationTANH> ACT_FUNCT_CLASS = ActivationTANH.class;
 	private Class<ActivationLinear> ACT_FUNCT_INPUT_LAYER_CLASS = ActivationLinear.class;
 	private BasicNeuralNet neuralNet;
@@ -122,7 +122,7 @@ public class BasicNeuralNetTest {
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void testFeedForwardWithWrongInput(){
-		neuralNet.feedForward(new double[0]);
+		neuralNet.feedForward(new float[0]);
 	}
 	
 	@Test

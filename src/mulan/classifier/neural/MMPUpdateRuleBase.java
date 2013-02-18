@@ -64,7 +64,8 @@ public abstract class MMPUpdateRuleBase implements ModelUpdateRule {
     public final double process(DataPair example, Map<String, Object> params) {
         int numLabels = example.getOutput().length;
         int numFeatures = example.getInput().length;
-        double[] dataInput = example.getInput();
+        float[]dataInputF = example.getInput();
+        double[] dataInput = null; //TODO convert
         double[] confidences = new double[numLabels];
 
         // update model prediction on raking for given example

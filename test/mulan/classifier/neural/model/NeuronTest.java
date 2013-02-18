@@ -111,7 +111,7 @@ public class NeuronTest {
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void testProcessInputWithNull(){
-		neuron.processInput(null);
+		neuron.processInput((double[])null);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)

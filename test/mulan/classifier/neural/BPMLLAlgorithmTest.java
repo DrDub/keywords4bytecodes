@@ -39,8 +39,8 @@ public class BPMLLAlgorithmTest {
 	private static final double WEIGHTS_DECAY_COST = 0.00001;
 	private static final double WRONG_WEIGHTS_DECAY_LOW = 0;
 	private static final double WRONG_WEIGHTS_DECAY_HIGH = 1;
-	private static final double[] INPUT_PATTERN = new double[] { -1, 1 };
-	private static final double[] EXPECTED_LABELS = new double[] { -1, 1, -1 };
+	private static final float[] INPUT_PATTERN = new float[] { -1, 1 };
+	private static final float[] EXPECTED_LABELS = new float[] { -1, 1, -1 };
 	private BPMLLAlgorithm algorithm;
 	
 	
@@ -94,12 +94,12 @@ public class BPMLLAlgorithmTest {
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void testLearnWithWrongInput(){
-		algorithm.learn(new double[0], EXPECTED_LABELS, LEARNING_RATE);
+		algorithm.learn(new float[0], EXPECTED_LABELS, LEARNING_RATE);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void testLearnWithWrongExpectedLabels(){
-		algorithm.learn(INPUT_PATTERN, new double[0], LEARNING_RATE);
+		algorithm.learn(INPUT_PATTERN, new float[0], LEARNING_RATE);
 	}
 	
 	@Test

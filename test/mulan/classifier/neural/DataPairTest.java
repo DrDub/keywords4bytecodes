@@ -37,8 +37,8 @@ import org.junit.Test;
  */
 public class DataPairTest {
 
-	private static final double[] TEST_INPUT = new double[]{0.1, 0.2, 3.3, 3.4};
-	private static final double[] TEST_OUTPUT = new double[]{1, 2, 3};
+	private static final float[] TEST_INPUT = new float[]{0.1f, 0.2f, 3.3f, 3.4f};
+	private static final float[] TEST_OUTPUT = new float[]{1, 2, 3};
 	private DataPair dataPair;
 	
 	@Before
@@ -76,13 +76,13 @@ public class DataPairTest {
 	
 	@Test
 	public void testGetInput(){
-		double[] result = dataPair.getInput();
+		float[] result = dataPair.getInput();
 		assertTrue("Returned array is not as expectated.", Arrays.equals(TEST_INPUT, result));
 	}
 	
 	@Test
 	public void testGetOutput(){
-		double[] result = dataPair.getOutput();
+		float[] result = dataPair.getOutput();
 		assertTrue("Returned array is not as expectated.", Arrays.equals(TEST_OUTPUT, result));
 	}
 }

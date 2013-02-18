@@ -21,148 +21,229 @@
 package mulan.classifier.neural.model;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import mulan.core.ArgumentNullException;
 
 /**
- * Implementation of basic neural network. The network consists of one input layer, 
- * zero or more hidden layers and one output layer. Each layer contains 1 or more 
- * {@link Neuron} units. The input layer is used just to store and forward input 
- * pattern of the network to first hidden layer for processing. 
- * Input layer do not process input pattern. Neurons of input layer have one input weight 
- * equal to 1, bias weight equal to 0 and use linear activation function.
+ * Implementation of basic neural network. The network consists of one input
+ * layer, zero or more hidden layers and one output layer. Each layer contains 1
+ * or more {@link Neuron} units. The input layer is used just to store and
+ * forward input pattern of the network to first hidden layer for processing.
+ * Input layer do not process input pattern. Neurons of input layer have one
+ * input weight equal to 1, bias weight equal to 0 and use linear activation
+ * function.
  * 
  * @author Jozef Vilcek
  * @version 2012.02.27
  */
 public class BasicNeuralNet implements NeuralNet, Serializable {
 
-    private static final long serialVersionUID = -8944873770650464701L;
-    private final List<List<Neuron>> layers;
-    private double[] currentNetOutput;
-    private final int netInputDim;
-    private final int netOutputDim;
+	private static final long serialVersionUID = -8944873770650464701L;
+	private final List<List<Neuron>> layers;
+	private double[] currentNetOutput;
+	private final int netInputDim;
+	private final int netOutputDim;
 
-    
-    /**
-     * Creates a new {@link BasicNeuralNet} instance.
-     *
-     * @param netTopology defines a topology of the network. The array length corresponds
-     * 		to number of network layers. The values of the array corresponds to number
-     * 		of neurons in each particular layer.
-     * @param biasInput the bias input value for neurons of the neural network.
-     * @param activationFunction the type of activation function to be used by network elements
-     * @param random the pseudo-random generator instance to be used for computations involving randomness. 
-     * 	This parameter can be null. In this case, new random instance with default seed will be constructed where needed.
-     * @throws IllegalArgumentException if network topology is incorrect of activation function class is null.
-     */
-    public BasicNeuralNet(int[] netTopology, double biasInput,
-            Class<? extends ActivationFunction> activationFunction, Random random) {
+	private ExecutorService threadPool;
+	private ArrayBlockingQueue<Integer> inputQueue;
+	private ArrayBlockingQueue<Integer> outputQueue;
+	private int cpus;
 
-        if (netTopology == null || netTopology.length < 2) {
-            throw new IllegalArgumentException("The topology for neural network is not specified " +
-                    "or is invalid. Please provide correct topology for the network.");
-        }
-        if (activationFunction == null) {
-            throw new ArgumentNullException("activationFunction");
-        }
+	/**
+	 * Creates a new {@link BasicNeuralNet} instance.
+	 * 
+	 * @param netTopology
+	 *            defines a topology of the network. The array length
+	 *            corresponds to number of network layers. The values of the
+	 *            array corresponds to number of neurons in each particular
+	 *            layer.
+	 * @param biasInput
+	 *            the bias input value for neurons of the neural network.
+	 * @param activationFunction
+	 *            the type of activation function to be used by network elements
+	 * @param random
+	 *            the pseudo-random generator instance to be used for
+	 *            computations involving randomness. This parameter can be null.
+	 *            In this case, new random instance with default seed will be
+	 *            constructed where needed.
+	 * @throws IllegalArgumentException
+	 *             if network topology is incorrect of activation function class
+	 *             is null.
+	 */
+	public BasicNeuralNet(int[] netTopology, double biasInput,
+			Class<? extends ActivationFunction> activationFunction,
+			Random random) {
 
-        netInputDim = netTopology[0];
-        netOutputDim = netTopology[netTopology.length - 1];
-        layers = new ArrayList<List<Neuron>>(netTopology.length);
-        // set up input layer
-        List<Neuron> inputLayer = new ArrayList<Neuron>(netTopology[0]);
-        for (int n = 0; n < netTopology[0]; n++) {
-            Neuron neuron = new Neuron(new ActivationLinear(), 1, biasInput, random);
-            double[] weights = neuron.getWeights();
-            weights[0] = 1;
-            weights[1] = 0;
-            inputLayer.add(neuron);
-        }
-        layers.add(inputLayer);
+		if (netTopology == null || netTopology.length < 2) {
+			throw new IllegalArgumentException(
+					"The topology for neural network is not specified "
+							+ "or is invalid. Please provide correct topology for the network.");
+		}
+		if (activationFunction == null) {
+			throw new ArgumentNullException("activationFunction");
+		}
 
-        // set up other layers
-        try {
-            for (int index = 1; index < netTopology.length; index++) {
-                // create neurons of a layer
-                List<Neuron> layer = new ArrayList<Neuron>(netTopology[index]);
-                for (int n = 0; n < netTopology[index]; n++) {
-                    Neuron neuron = new Neuron(activationFunction.newInstance(),
-                            netTopology[index - 1], biasInput, random);
-                    layer.add(neuron);
-                }
-                layers.add(layer);
-                // add forward connections between layers
-                List<Neuron> prevLayer = layers.get(index - 1);
-                for (int n = 0; n < prevLayer.size(); n++) {
-                    prevLayer.get(n).addAllNeurons(layer);
-                }
-            }
-        } catch (InstantiationException e) {
-            throw new IllegalArgumentException("Failed to create activation function instance.", e);
-        } catch (IllegalAccessException e) {
-            throw new IllegalArgumentException("Failed to create activation function instance.", e);
-        }
-    }
+		netInputDim = netTopology[0];
+		netOutputDim = netTopology[netTopology.length - 1];
+		layers = new ArrayList<List<Neuron>>(netTopology.length);
+		// set up input layer
+		List<Neuron> inputLayer = new ArrayList<Neuron>(netTopology[0]);
+		for (int n = 0; n < netTopology[0]; n++) {
+			Neuron neuron = new Neuron(new ActivationLinear(), 1, biasInput,
+					random);
+			double[] weights = neuron.getWeights();
+			weights[0] = 1;
+			weights[1] = 0;
+			inputLayer.add(neuron);
+		}
+		layers.add(inputLayer);
+		int maxSize = inputLayer.size();
 
-    public List<Neuron> getLayerUnits(int layerIndex) {
+		// set up other layers
+		try {
+			for (int index = 1; index < netTopology.length; index++) {
+				// create neurons of a layer
+				List<Neuron> layer = new ArrayList<Neuron>(netTopology[index]);
+				maxSize = Math.max(maxSize, netTopology[index]);
 
-        return Collections.unmodifiableList(layers.get(layerIndex));
-    }
+				for (int n = 0; n < netTopology[index]; n++) {
+					Neuron neuron = new Neuron(
+							activationFunction.newInstance(),
+							netTopology[index - 1], biasInput, random);
+					layer.add(neuron);
+				}
+				layers.add(layer);
+				// add forward connections between layers
+				List<Neuron> prevLayer = layers.get(index - 1);
+				for (int n = 0; n < prevLayer.size(); n++) {
+					prevLayer.get(n).addAllNeurons(layer);
+				}
+			}
+		} catch (InstantiationException e) {
+			throw new IllegalArgumentException(
+					"Failed to create activation function instance.", e);
+		} catch (IllegalAccessException e) {
+			throw new IllegalArgumentException(
+					"Failed to create activation function instance.", e);
+		}
 
-    public int getLayersCount() {
-        return layers.size();
-    }
+		this.cpus = 3; //Runtime.getRuntime().availableProcessors();
+		this.threadPool = Executors.newFixedThreadPool(cpus);
+		this.inputQueue = new ArrayBlockingQueue<Integer>(maxSize);
+		this.outputQueue = new ArrayBlockingQueue<Integer>(maxSize);
+	}
 
-    public double[] feedForward(final double[] inputPattern) {
+	public List<Neuron> getLayerUnits(int layerIndex) {
 
-        if (inputPattern == null || inputPattern.length != netInputDim) {
-            throw new IllegalArgumentException("Specified input pattern vector is null " +
-                    "or does not match network input dimension.");
-        }
+		return Collections.unmodifiableList(layers.get(layerIndex));
+	}
 
-        double[] layerOutput = null;
-        double[] layerInput = inputPattern;
-        for (int layerIndex = 0; layerIndex < layers.size(); layerIndex++) {
-            List<Neuron> layer = layers.get(layerIndex);
-            int layerSize = layer.size();
-            layerOutput = new double[layerSize];
-            for (int n = 0; n < layerSize; n++) {
-                if (layerIndex == 0) {
-                    layerOutput[n] = layer.get(n).processInput(new double[]{layerInput[n]});
-                } else {
-                    layerOutput[n] = layer.get(n).processInput(layerInput);
-                }
-            }
-            layerInput = Arrays.copyOf(layerOutput, layerOutput.length);
-        }
+	public int getLayersCount() {
+		return layers.size();
+	}
 
-        currentNetOutput = Arrays.copyOf(layerOutput, layerOutput.length);
-        return currentNetOutput;
-    }
+	private double[][] layersTmp = null;
+	private int layerIndexTmp;
+	private List<Neuron> layerTmp;
+	private int layerSizeTmp;
+	private AtomicInteger counter = new AtomicInteger();
 
-    public double[] getOutput() {
-        if (currentNetOutput == null) {
-            return new double[netOutputDim];
-        }
+	public double[] feedForward(final float[] inputPattern) {
 
-        return currentNetOutput;
-    }
+		if (inputPattern == null || inputPattern.length != netInputDim) {
+			throw new IllegalArgumentException(
+					"Specified input pattern vector is null "
+							+ "or does not match network input dimension.");
+		}
 
-    public void reset() {
-        currentNetOutput = null;
-        for (List<Neuron> layer : layers) {
-            for (Neuron neuron : layer) {
-                neuron.reset();
-            }
-        }
-    }
+		if (layersTmp == null) {
+			layersTmp = new double[layers.size()][];
 
-    public int getNetInputSize() {
-        return netInputDim;
-    }
+			for (int layerIndex = 0; layerIndex < layers.size(); layerIndex++)
+				layersTmp[layerIndex] = new double[layers.get(layerIndex)
+						.size()];
 
-    public int getNetOutputSize() {
-        return netOutputDim;
-    }
+			for (int cpu = 0; cpu < cpus; cpu++)
+				threadPool.submit(new Runnable() {
+					public void run() {
+						while (true) {
+							try {
+								inputQueue.take(); // start
+								while (true) {
+									int n = counter.getAndIncrement();
+									if (n >= layerSizeTmp)
+										break;
+
+									if (layerIndexTmp == 0)
+										layersTmp[layerIndexTmp][n] = layerTmp
+												.get(n)
+												.processInput(
+														new double[] { inputPattern[n] });
+									else
+										layersTmp[layerIndexTmp][n] = layerTmp
+												.get(n)
+												.processInput(
+														layersTmp[layerIndexTmp - 1]);
+								}
+								outputQueue.offer(1);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+						}
+					}
+				});
+		}
+
+		for (layerIndexTmp = 0; layerIndexTmp < layers.size(); layerIndexTmp++) {
+			layerTmp = layers.get(layerIndexTmp);
+			layerSizeTmp = layerTmp.size();
+			try {
+				counter.set(0);
+				for (int n = 0; n < cpus; n++)
+					inputQueue.offer(1);
+				for (int n = 0; n < cpus; n++)
+					outputQueue.take(); // ignore value
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+
+		currentNetOutput = Arrays.copyOf(layersTmp[layers.size() - 1],
+				layersTmp[layers.size() - 1].length);
+		return currentNetOutput;
+	}
+
+	public double[] getOutput() {
+		if (currentNetOutput == null) {
+			return new double[netOutputDim];
+		}
+
+		return currentNetOutput;
+	}
+
+	public void reset() {
+		currentNetOutput = null;
+		for (List<Neuron> layer : layers) {
+			for (Neuron neuron : layer) {
+				neuron.reset();
+			}
+		}
+	}
+
+	public int getNetInputSize() {
+		return netInputDim;
+	}
+
+	public int getNetOutputSize() {
+		return netOutputDim;
+	}
 }

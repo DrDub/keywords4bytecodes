@@ -82,7 +82,7 @@ public interface NeuralNet {
      * @return the output of the network
      * @throws IllegalArgumentException if input pattern is null or does not match network input dimension
      */
-    double[] feedForward(final double[] inputPattern);
+    double[] feedForward(final float[] inputPattern);
 
     /**
      * Returns the actual output of the neural network,

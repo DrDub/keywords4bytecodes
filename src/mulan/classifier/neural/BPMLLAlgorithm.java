@@ -97,7 +97,7 @@ public class BPMLLAlgorithm {
      * @return the error of the network response for the passed input
      * 			or {@link Double#NaN} if the passed input can not be processed.
      */
-    public double learn(double[] inputPattern, double[] expectedLabels, double learningRate) {
+    public double learn(float[] inputPattern, float[] expectedLabels, double learningRate) {
 
         if (inputPattern == null || inputPattern.length != neuralNet.getNetInputSize()) {
             throw new IllegalArgumentException("Specified input pattern vector is null " +
@@ -174,7 +174,7 @@ public class BPMLLAlgorithm {
      * @return the error of the network response for the passed input
      * 		   or {@link Double#NaN} if the passed input can not be processed
      */
-    public double getNetworkError(double[] inputPattern, double[] expectedLabels) {
+    public double getNetworkError(float[] inputPattern, float[] expectedLabels) {
 
         double[] networkOutputs = neuralNet.feedForward(inputPattern);
         double[] outputErrors = computeErrorsForNeurons(networkOutputs, expectedLabels);
@@ -270,7 +270,7 @@ public class BPMLLAlgorithm {
      * @param expectedLabels the ideal, expected output for labels assignment which network should output
      * @return error for each neuron or null if can not be computed (either Yi or Yi' is empty set)
      */
-    private double[] computeErrorsForNeurons(double[] networkOutputs, double[] expectedLabels) {
+    private double[] computeErrorsForNeurons(double[] networkOutputs, float[] expectedLabels) {
 
         List<Integer> isLabel = new ArrayList<Integer>();
         List<Integer> isNotLabel = new ArrayList<Integer>();

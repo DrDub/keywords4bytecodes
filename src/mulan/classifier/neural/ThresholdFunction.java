@@ -26,130 +26,161 @@ import weka.core.Utils;
 import weka.core.matrix.Matrix;
 
 /**
- * Implementation of a threshold function. 
- *  
+ * Implementation of a threshold function.
+ * 
  * @author Jozef Vilcek
  * @version 2012.02.27
  */
 public class ThresholdFunction implements Serializable {
 
-    /** Default serial version UID for serialization*/
-    private static final long serialVersionUID = 5347411552628371402L;
-    private double[] parameters;
+	/** Default serial version UID for serialization */
+	private static final long serialVersionUID = 5347411552628371402L;
+	private double[] parameters;
+	private double threshold;
+	private boolean useFixed = false;
 
-    /**
-     * Creates a new instance of {@link ThresholdFunction} and
-     * builds the function based on input parameters.
-     *
-     * @param idealLabels the ideal output for each input patterns, which a model should output
-     * @param modelOutLabels the real output of a model for each input pattern
-     * @throws IllegalArgumentException if dimensions of input arrays does not match
-     * @see ThresholdFunction#build(double[][], double[][])
-     */
-    public ThresholdFunction(final double[][] idealLabels, final double[][] modelOutLabels) {
-        this.build(idealLabels, modelOutLabels);
-    }
+	public ThresholdFunction(double threshold) {
+		this.useFixed = true;
+		this.threshold = threshold;
+	}
 
-    /**
-     * Computes a threshold value, based on learned parameters, for given labels confidences.
-     *
-     * @param labelsConfidences the labels confidences
-     * @return the threshold value
-     * @throws IllegalArgumentException if the dimension of labels confidences does not match
-     * 		   							the dimension of learned parameters of threshold function.
-     */
-    public double computeThreshold(final double[] labelsConfidences) {
+	/**
+	 * Creates a new instance of {@link ThresholdFunction} and builds the
+	 * function based on input parameters.
+	 * 
+	 * @param idealLabels
+	 *            the ideal output for each input patterns, which a model should
+	 *            output
+	 * @param modelOutLabels
+	 *            the real output of a model for each input pattern
+	 * @throws IllegalArgumentException
+	 *             if dimensions of input arrays does not match
+	 * @see ThresholdFunction#build(double[][], double[][])
+	 */
+	public ThresholdFunction(final float[][] idealLabels,
+			final double[][] modelOutLabels) {
+		this.build(idealLabels, modelOutLabels);
+	}
 
-        int expectedDim = parameters.length - 1;
-        if (labelsConfidences.length != expectedDim) {
-            throw new IllegalArgumentException("The array of label confidences has wrong dimension." +
-                    "The function expect parameters of length : " + expectedDim);
-        }
+	/**
+	 * Computes a threshold value, based on learned parameters, for given labels
+	 * confidences.
+	 * 
+	 * @param labelsConfidences
+	 *            the labels confidences
+	 * @return the threshold value
+	 * @throws IllegalArgumentException
+	 *             if the dimension of labels confidences does not match the
+	 *             dimension of learned parameters of threshold function.
+	 */
+	public double computeThreshold(final double[] labelsConfidences) {
+		if (this.useFixed)
+			return this.threshold;
 
-        double threshold = 0;
-        for (int index = 0; index < expectedDim; index++) {
-            threshold += labelsConfidences[index] * parameters[index];
-        }
-        threshold += parameters[expectedDim];
+		int expectedDim = parameters.length - 1;
+		if (labelsConfidences.length != expectedDim) {
+			throw new IllegalArgumentException(
+					"The array of label confidences has wrong dimension."
+							+ "The function expect parameters of length : "
+							+ expectedDim);
+		}
 
-        return threshold;
-    }
+		double threshold = 0;
+		for (int index = 0; index < expectedDim; index++) {
+			threshold += labelsConfidences[index] * parameters[index];
+		}
+		threshold += parameters[expectedDim];
 
-    /**
-     * Build a threshold function for based on input data.
-     * The threshold function is build for a particular model.
-     *
-     * @param idealLabels the ideal output for each input patterns, which a model should output.
-     * 					  First index is expected to be number of examples and second is the label index.
-     * @param modelOutLabels the real output of a model for each input pattern.
-     * 						 First index is expected to be number of examples and second is the label index.
-     * @throws IllegalArgumentException if dimensions of input arrays does not match
-     */
-    public void build(final double[][] idealLabels, final double[][] modelOutLabels) {
+		return threshold;
+	}
 
-        if (idealLabels == null || modelOutLabels == null) {
-            throw new IllegalArgumentException("Non of the input parameters can be null.");
-        }
+	/**
+	 * Build a threshold function for based on input data. The threshold
+	 * function is build for a particular model.
+	 * 
+	 * @param idealLabels
+	 *            the ideal output for each input patterns, which a model should
+	 *            output. First index is expected to be number of examples and
+	 *            second is the label index.
+	 * @param modelOutLabels
+	 *            the real output of a model for each input pattern. First index
+	 *            is expected to be number of examples and second is the label
+	 *            index.
+	 * @throws IllegalArgumentException
+	 *             if dimensions of input arrays does not match
+	 */
+	public void build(final float[][] idealLabels,
+			final double[][] modelOutLabels) {
 
-        int numExamples = idealLabels.length;
-        int numLabels = idealLabels[0].length;
+		if (idealLabels == null || modelOutLabels == null) {
+			throw new IllegalArgumentException(
+					"Non of the input parameters can be null.");
+		}
 
-        if (modelOutLabels.length != numExamples ||
-                modelOutLabels[0].length != numLabels) {
-            throw new IllegalArgumentException("Matrix dimensions of input parameters does not agree.");
-        }
+		int numExamples = idealLabels.length;
+		int numLabels = idealLabels[0].length;
 
-        double[] thresholds = new double[numExamples];
-        double[] isLabelModelOuts = new double[numLabels];
-        double[] isNotLabelModelOuts = new double[numLabels];
-        for (int example = 0; example < numExamples; example++) {
-            Arrays.fill(isLabelModelOuts, Double.MAX_VALUE);
-            Arrays.fill(isNotLabelModelOuts, -Double.MAX_VALUE);
-            for (int label = 0; label < numLabels; label++) {
-                if (idealLabels[example][label] == 1) {
-                    isLabelModelOuts[label] = modelOutLabels[example][label];
-                } else {
-                    isNotLabelModelOuts[label] = modelOutLabels[example][label];
-                }
-            }
-            double isLabelMin = isLabelModelOuts[Utils.minIndex(isLabelModelOuts)];
-            double isNotLabelMax = isNotLabelModelOuts[Utils.maxIndex(isNotLabelModelOuts)];
+		if (modelOutLabels.length != numExamples
+				|| modelOutLabels[0].length != numLabels) {
+			throw new IllegalArgumentException(
+					"Matrix dimensions of input parameters does not agree.");
+		}
 
-            // check if we have unique minimum ...
-            // if not take center of the segment ... if it is a segment
-            if (isLabelMin != isNotLabelMax) {
-                // check marginal cases -> all labels are in or none of them
-                if (isLabelMin == Double.MAX_VALUE) {
-                    thresholds[example] = isNotLabelMax + 0.1;
-                } else if (isNotLabelMax == -Double.MAX_VALUE) {
-                    thresholds[example] = isLabelMin - 0.1;
-                } else {
-                    // center of a segment
-                    thresholds[example] = (isLabelMin + isNotLabelMax) / 2;
-                }
-            } else {
-                // when minimum is unique
-                thresholds[example] = isLabelMin;
-            }
-        }
+		double[] thresholds = new double[numExamples];
+		double[] isLabelModelOuts = new double[numLabels];
+		double[] isNotLabelModelOuts = new double[numLabels];
+		for (int example = 0; example < numExamples; example++) {
+			Arrays.fill(isLabelModelOuts, Double.MAX_VALUE);
+			Arrays.fill(isNotLabelModelOuts, -Double.MAX_VALUE);
+			for (int label = 0; label < numLabels; label++) {
+				if (idealLabels[example][label] == 1) {
+					isLabelModelOuts[label] = modelOutLabels[example][label];
+				} else {
+					isNotLabelModelOuts[label] = modelOutLabels[example][label];
+				}
+			}
+			double isLabelMin = isLabelModelOuts[Utils
+					.minIndex(isLabelModelOuts)];
+			double isNotLabelMax = isNotLabelModelOuts[Utils
+					.maxIndex(isNotLabelModelOuts)];
 
-        Matrix modelMatrix = new Matrix(numExamples, numLabels + 1, 1.0);
-        modelMatrix.setMatrix(0, numExamples - 1, 0, numLabels - 1, new Matrix(modelOutLabels));
-        Matrix weights = modelMatrix.solve(new Matrix(thresholds, thresholds.length));
-        double[][] weightsArray = weights.transpose().getArray();
+			// check if we have unique minimum ...
+			// if not take center of the segment ... if it is a segment
+			if (isLabelMin != isNotLabelMax) {
+				// check marginal cases -> all labels are in or none of them
+				if (isLabelMin == Double.MAX_VALUE) {
+					thresholds[example] = isNotLabelMax + 0.1;
+				} else if (isNotLabelMax == -Double.MAX_VALUE) {
+					thresholds[example] = isLabelMin - 0.1;
+				} else {
+					// center of a segment
+					thresholds[example] = (isLabelMin + isNotLabelMax) / 2;
+				}
+			} else {
+				// when minimum is unique
+				thresholds[example] = isLabelMin;
+			}
+		}
 
-        parameters = Arrays.copyOf(weightsArray[0], weightsArray[0].length);
-    }
+		Matrix modelMatrix = new Matrix(numExamples, numLabels + 1, 1.0);
+		modelMatrix.setMatrix(0, numExamples - 1, 0, numLabels - 1, new Matrix(
+				modelOutLabels));
+		Matrix weights = modelMatrix.solve(new Matrix(thresholds,
+				thresholds.length));
+		double[][] weightsArray = weights.transpose().getArray();
 
-    /**
-     * Returns parameters learned by the threshold function in last build.
-     * Based on these parameters the functions is computing thresholds for
-     * label confidences.<br/>
-     * Support for unit tests ...
-     *
-     * @return parameters
-     */
-    protected double[] getFunctionParameters() {
-        return Arrays.copyOf(parameters, parameters.length);
-    }
+		parameters = Arrays.copyOf(weightsArray[0], weightsArray[0].length);
+	}
+
+	/**
+	 * Returns parameters learned by the threshold function in last build. Based
+	 * on these parameters the functions is computing thresholds for label
+	 * confidences.<br/>
+	 * Support for unit tests ...
+	 * 
+	 * @return parameters
+	 */
+	protected double[] getFunctionParameters() {
+		return Arrays.copyOf(parameters, parameters.length);
+	}
 }

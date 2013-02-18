@@ -185,6 +185,33 @@ public class Neuron implements Serializable {
 
         return neuronOutput;
     }
+    /**
+     * Process an input pattern vector and returns the response of the {@link Neuron}.
+     *
+     * @param inputs input pattern vector
+     * @return the output of the {@link Neuron}
+     */
+    public double processInput(final float[] inputs) {
+
+        if (inputs == null) {
+            throw new IllegalArgumentException("The input pattern for processing is null.");
+        }
+
+        if (inputs.length != inputDim) {
+            throw new IllegalArgumentException("The dimension of input pattern vector " +
+                    "does not match dimenstion of the neuron.");
+        }
+
+        neuronInput = 0;
+        for (int i = 0; i < inputDim; i++) {
+            neuronInput += inputWeights[i] * inputs[i];
+        }
+        // add bias
+        neuronInput += inputWeights[inputDim] * biasInput;
+        neuronOutput = function.activate(neuronInput);
+
+        return neuronOutput;
+    }
 
     /**
      * Returns the output of the {@link Neuron}.
