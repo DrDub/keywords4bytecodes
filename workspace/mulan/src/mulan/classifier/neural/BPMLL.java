@@ -20,7 +20,13 @@
  */
 package mulan.classifier.neural;
 
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import mulan.classifier.InvalidDataException;
 import mulan.classifier.MultiLabelLearnerBase;
 import mulan.classifier.MultiLabelOutput;
@@ -32,8 +38,10 @@ import mulan.data.DataUtils;
 import mulan.data.InvalidDataFormatException;
 import mulan.data.MultiLabelInstances;
 import weka.core.Attribute;
+import weka.core.DenseInstance;
 import weka.core.Instance;
 import weka.core.Instances;
+import weka.core.SparseInstance;
 import weka.core.TechnicalInformation;
 import weka.core.TechnicalInformation.Field;
 import weka.core.TechnicalInformation.Type;
@@ -255,6 +263,8 @@ public class BPMLL extends MultiLabelLearnerBase {
 		// delete filter if available from previous build, a new one will be
 		// created if necessary
 		nominalToBinaryFilter = null;
+		
+		int runPrefix = (int)(Math.random()*1000);
 
 		MultiLabelInstances trainInstances = instances.clone();
 		if (this.getDebug())
@@ -289,6 +299,12 @@ public class BPMLL extends MultiLabelLearnerBase {
 				// if (epoch % 10 == 0) {
 				debug("Training epoch : " + epoch + "  Model error : " + error
 						/ processedInstances);
+
+				ObjectOutputStream oos = new ObjectOutputStream(
+						new FileOutputStream("/tmp/" + runPrefix + "_epoch" + epoch
+								+ "_bpmll.model"));
+				oos.writeObject(this);
+				oos.close();
 				// }
 			}
 
@@ -395,14 +411,66 @@ public class BPMLL extends MultiLabelLearnerBase {
 
 			if (normalizeAttributes) {
 				if (getDebug())
-					System.err.print("normalizing ");
-				normalizer = new NormalizationFilter(mlData, true, -0.8, 0.8);
+					System.err.print("pre-normalizing ");
+				normalizer = new NormalizationFilter(mlData, false, -0.8, 0.8);
 			}
 
 			if (getDebug())
-				System.err.print("about to createDataPairs ");
+				System.err.print("createDataPairs ");
 
-			return DataPair.createDataPairs(mlData, true);
+			final List<DataPair> result = DataPair
+					.createDataPairs(mlData, true);
+			if (normalizeAttributes) {
+				if (getDebug())
+					System.err.print("normalizing ");
+				final int numInstances = result.size();
+				int cpus = Runtime.getRuntime().availableProcessors();
+				ExecutorService threadPool = Executors.newFixedThreadPool(cpus);
+				final AtomicInteger current = new AtomicInteger(0);
+				final Object lock = new Object();
+
+				final double[][] attStats = normalizer.getStats(result.get(0)
+						.getInput().length);
+				final double minValue = -0.8;
+				final double maxValue = 0.8;
+
+				for (int cpu = 0; cpu < cpus; cpu++)
+					threadPool.submit(new Runnable() {
+						public void run() {
+							while (true) {
+								int n = current.getAndAdd(100);
+								if (n >= numInstances) {
+									synchronized (lock) {
+										lock.notifyAll();
+									}
+									break;
+								}
+								for (int index = n; index < n + 100
+										&& index < numInstances; index++) {
+									float[] instance = result.get(index)
+											.getInput();
+
+									for (int i = 0; i < instance.length; i++) {
+										double attMin = attStats[i][0];
+										double attMax = attStats[i][1];
+										if (attMin == attMax)
+											instance[i] = (float) minValue;
+										else
+											instance[i] = (float) ((((instance[i] - attMin) / (attMax - attMin)) * (maxValue - minValue)) + minValue);
+									}
+								}
+							}
+						}
+					});
+				synchronized (lock) {
+					try {
+						lock.wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			return result;
 		}
 	}
 

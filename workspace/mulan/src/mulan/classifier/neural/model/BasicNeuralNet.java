@@ -53,10 +53,11 @@ public class BasicNeuralNet implements NeuralNet, Serializable {
 	private final int netInputDim;
 	private final int netOutputDim;
 
-	private ExecutorService threadPool;
-	private ArrayBlockingQueue<Integer> inputQueue;
-	private ArrayBlockingQueue<Integer> outputQueue;
-	private int cpus;
+	transient private ExecutorService threadPool;
+	transient private ArrayBlockingQueue<Integer> inputQueue;
+	transient private ArrayBlockingQueue<Integer> outputQueue;
+	transient private int cpus;
+	private int maxSize;
 
 	/**
 	 * Creates a new {@link BasicNeuralNet} instance.
@@ -106,7 +107,7 @@ public class BasicNeuralNet implements NeuralNet, Serializable {
 			inputLayer.add(neuron);
 		}
 		layers.add(inputLayer);
-		int maxSize = inputLayer.size();
+		maxSize = inputLayer.size();
 
 		// set up other layers
 		try {
@@ -135,27 +136,23 @@ public class BasicNeuralNet implements NeuralNet, Serializable {
 			throw new IllegalArgumentException(
 					"Failed to create activation function instance.", e);
 		}
-
-		this.cpus = 3; //Runtime.getRuntime().availableProcessors();
-		this.threadPool = Executors.newFixedThreadPool(cpus);
-		this.inputQueue = new ArrayBlockingQueue<Integer>(maxSize);
-		this.outputQueue = new ArrayBlockingQueue<Integer>(maxSize);
 	}
 
 	public List<Neuron> getLayerUnits(int layerIndex) {
+		return layers.get(layerIndex);
 
-		return Collections.unmodifiableList(layers.get(layerIndex));
+//		return Collections.unmodifiableList(layers.get(layerIndex));
 	}
 
 	public int getLayersCount() {
 		return layers.size();
 	}
 
-	private double[][] layersTmp = null;
+	transient private double[][] layersTmp = null;
 	private int layerIndexTmp;
-	private List<Neuron> layerTmp;
+	transient private List<Neuron> layerTmp;
 	private int layerSizeTmp;
-	private AtomicInteger counter = new AtomicInteger();
+	transient private AtomicInteger counter = null;
 
 	public double[] feedForward(final float[] inputPattern) {
 
@@ -168,6 +165,12 @@ public class BasicNeuralNet implements NeuralNet, Serializable {
 		if (layersTmp == null) {
 			layersTmp = new double[layers.size()][];
 
+			counter = new AtomicInteger();
+			this.cpus = 3; //Runtime.getRuntime().availableProcessors();
+			this.threadPool = Executors.newFixedThreadPool(cpus);
+			this.inputQueue = new ArrayBlockingQueue<Integer>(maxSize);
+			this.outputQueue = new ArrayBlockingQueue<Integer>(maxSize);
+
 			for (int layerIndex = 0; layerIndex < layers.size(); layerIndex++)
 				layersTmp[layerIndex] = new double[layers.get(layerIndex)
 						.size()];
@@ -178,22 +181,31 @@ public class BasicNeuralNet implements NeuralNet, Serializable {
 						while (true) {
 							try {
 								inputQueue.take(); // start
-								while (true) {
-									int n = counter.getAndIncrement();
-									if (n >= layerSizeTmp)
-										break;
+								if (layerIndexTmp == 0)
+									while (true) {
+										int n = counter.getAndAdd(10);
+										if (n >= layerSizeTmp)
+											break;
+										for (int k = n; k < n + 10
+												&& k < layerSizeTmp; k++)
+											layersTmp[layerIndexTmp][k] = layerTmp
+													.get(k)
+													.processInput(
+															new double[] { inputPattern[k] });
+									}
+								else
+									while (true) {
+										int n = counter.getAndAdd(10);
+										if (n >= layerSizeTmp)
+											break;
+										for (int k = n; k < n + 10
+												&& k < layerSizeTmp; k++)
+											layersTmp[layerIndexTmp][k] = layerTmp
+													.get(k)
+													.processInput(
+															layersTmp[layerIndexTmp - 1]);
+									}
 
-									if (layerIndexTmp == 0)
-										layersTmp[layerIndexTmp][n] = layerTmp
-												.get(n)
-												.processInput(
-														new double[] { inputPattern[n] });
-									else
-										layersTmp[layerIndexTmp][n] = layerTmp
-												.get(n)
-												.processInput(
-														layersTmp[layerIndexTmp - 1]);
-								}
 								outputQueue.offer(1);
 							} catch (InterruptedException e) {
 								e.printStackTrace();
