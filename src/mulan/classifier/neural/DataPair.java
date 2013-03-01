@@ -202,6 +202,7 @@ public class DataPair {
 				e.printStackTrace();
 			}
 		}
+//		threadPool.shutdown();
 
 		List<DataPair> dataPairs = new ArrayList<DataPair>(dataPairsTemp.length);
 		for (DataPair pair : dataPairsTemp)

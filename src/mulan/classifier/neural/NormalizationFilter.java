@@ -30,8 +30,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import mulan.data.MultiLabelInstances;
 import weka.core.Attribute;
+import weka.core.DenseInstance;
 import weka.core.Instance;
 import weka.core.Instances;
+import weka.core.SparseInstance;
 import weka.experiment.Stats;
 
 /**
@@ -99,14 +101,22 @@ public class NormalizationFilter implements Serializable {
 				threadPool.submit(new Runnable() {
 					public void run() {
 						while (true) {
-							int index = current.getAndIncrement();
-							if (index >= numInstances) {
+							int n = current.getAndAdd(100);
+							if (n >= numInstances) {
 								synchronized (lock) {
 									lock.notifyAll();
 								}
 								break;
 							}
-							normalize(instances.instance(index));
+							for (int index = n; index < n + 100
+									&& index < numInstances; index++) {
+								Instance instance = instances.instance(index);
+								if (instance instanceof SparseInstance) {
+									instance = new DenseInstance(instance);
+									instances.set(index, instance, false);
+								}
+								normalize(instance);
+							}
 						}
 					}
 				});
@@ -173,5 +183,15 @@ public class NormalizationFilter implements Serializable {
 				attStats.put(attIndex, new double[] { stats.min, stats.max });
 			}
 		}
+	}
+
+	public double[][] getStats(int range) {
+		double[][] result = new double[range][];
+		for (int i = 0; i < range; i++)
+			if (attStats.contains(i))
+				result[i] = attStats.get(i);
+			else
+				result[i] = new double[2];
+		return result;
 	}
 }
