@@ -8,7 +8,7 @@ Code behind the keywords4bytecodes.org project.
 Generating the corpus of bytecodes / comments
 ---------------------------------------------
 
-This can be done only in Debian-compatible GNU/Linux system with a debin mirror in ./debian-mirror.
+This can be done only in a Debian-compatible GNU/Linux system with a Debian mirror in ./debian-mirror.
 
 Packages that need to be installed
 
