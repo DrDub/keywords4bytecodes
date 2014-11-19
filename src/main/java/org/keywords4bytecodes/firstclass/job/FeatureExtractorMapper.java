@@ -18,7 +18,7 @@ import org.keywords4bytecodes.firstclass.FeatureGenerator;
 
 public class FeatureExtractorMapper extends Mapper<Object, Text, Text, Text> {
 
-	private Text word = new Text();
+	private Text feature = new Text();
 	private Text label = new Text();
 
 	private FeatureGenerator generator;
@@ -65,9 +65,9 @@ public class FeatureExtractorMapper extends Mapper<Object, Text, Text, Text> {
 
 		label.set(parts[0]);
 		for (Map.Entry<String, AtomicInteger> e : table.entrySet()) {
-			word.set(e.getKey());
+			feature.set(e.getKey());
 			for (int i = 0; i < e.getValue().get(); i++)
-				context.write(label, word);
+				context.write(feature, label);
 		}
 	}
 }

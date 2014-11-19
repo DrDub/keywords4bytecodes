@@ -37,7 +37,8 @@ public class FeatureExtractorReducer extends Reducer<Text, Text, Text, Text> {
 
 			for (String label : counts.keySet()) {
 				double labelCounts = counts.get(label).get();
-				double score = labelCounts - allCounts / totalLabels;
+				double score = (labelCounts - allCounts / totalLabels)
+						/ allCounts;
 				score = Math.sqrt(score * score);
 				if (score > bestScore)
 					bestScore = score;
