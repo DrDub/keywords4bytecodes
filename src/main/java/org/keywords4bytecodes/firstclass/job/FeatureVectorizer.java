@@ -11,17 +11,27 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.mahout.math.VectorWritable;
 
-public class FeatureSelector {
+public class FeatureVectorizer {
 
 	public static void main(String[] args) throws IOException,
 			InterruptedException, ClassNotFoundException {
 
 		Path inputPath = new Path(args[0]);
-		Path outputDir = new Path(args[1]);
+		Path featurePath = new Path(args[1]);
+		Path outputDir = new Path(args[2]);
 
 		// Create configuration
 		Configuration conf = new Configuration(true);
+		FileSystem fs = FileSystem.get(conf);
+
+		if (!fs.exists(featurePath)) {
+			System.err.println("Feature file must exist: " + args[1]);
+			System.exit(1);
+		}
+
+		conf.set(FeatureVectorizerMapper.TARGET_FEATURES_PARAM, args[1]);
 
 		// see
 		// http://stackoverflow.com/questions/17265002/hadoop-no-filesystem-for-scheme-file
@@ -31,17 +41,17 @@ public class FeatureSelector {
 				org.apache.hadoop.fs.LocalFileSystem.class.getName());
 
 		// Create job
-		Job job = Job.getInstance(conf, "FeatureSelector");
-		job.setJarByClass(FeatureSelector.class);
+		Job job = Job.getInstance(conf, "FeatureVectorizer");
+		job.setJarByClass(FeatureVectorizer.class);
 
 		// Setup MapReduce
-		job.setMapperClass(FeatureExtractorMapper.class);
-		job.setReducerClass(FeatureExtractorReducer.class);
-		// job.setNumReduceTasks(1);
+		job.setMapperClass(FeatureVectorizerMapper.class);
+		job.setReducerClass(FeatureVectorizerReducer.class);
+		job.setNumReduceTasks(1);
 
 		// Specify key / value
 		job.setOutputKeyClass(Text.class);
-		job.setOutputValueClass(Text.class);
+		job.setOutputValueClass(VectorWritable.class);
 
 		// Input
 		FileInputFormat.addInputPath(job, inputPath);
@@ -52,9 +62,8 @@ public class FeatureSelector {
 		job.setOutputFormatClass(TextOutputFormat.class);
 
 		// Delete output if exists
-		FileSystem hdfs = FileSystem.get(conf);
-		if (hdfs.exists(outputDir))
-			hdfs.delete(outputDir, true);
+		if (fs.exists(outputDir))
+			fs.delete(outputDir, true);
 
 		// Execute job
 		int code = job.waitForCompletion(true) ? 0 : 1;
