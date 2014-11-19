@@ -12,11 +12,13 @@ public class FeatureVectorizerReducer extends
 	public void reduce(Text label, Iterable<VectorWritable> vectors,
 			Context context) throws IOException, InterruptedException {
 		int count = 0;
+		// System.out.println("R" + label);
+		String text = label.toString();
+		if (text.isEmpty())
+			return;
 		for (VectorWritable v : vectors) {
 			count++;
-			context.write(
-					new Text("/" + label.toString() + "/" + label.toString()
-							+ count), v);
+			context.write(new Text("/" + text + "/" + count), v);
 		}
 	}
 }

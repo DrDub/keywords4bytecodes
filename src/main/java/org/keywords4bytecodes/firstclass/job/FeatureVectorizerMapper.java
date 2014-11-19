@@ -72,6 +72,7 @@ public class FeatureVectorizerMapper extends
 		for (Map.Entry<String, AtomicInteger> e : table.entrySet())
 			v.set(featToPos.get(e.getKey()), e.getValue().get());
 		vectorWritable.set(v);
+		// System.out.println("M"+parts[0]);
 		context.write(label, vectorWritable);
 	}
 }

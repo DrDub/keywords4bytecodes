@@ -10,7 +10,7 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.mahout.math.VectorWritable;
 
 public class FeatureVectorizer {
@@ -59,8 +59,8 @@ public class FeatureVectorizer {
 
 		// Output
 		FileOutputFormat.setOutputPath(job, outputDir);
-		job.setOutputFormatClass(TextOutputFormat.class);
-
+	    job.setOutputFormatClass(SequenceFileOutputFormat.class);
+	    
 		// Delete output if exists
 		if (fs.exists(outputDir))
 			fs.delete(outputDir, true);

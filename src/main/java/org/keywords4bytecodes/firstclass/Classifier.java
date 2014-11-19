@@ -22,7 +22,9 @@ public class Classifier {
 				args[1] + "/train-vectors", //
 				"--testOutput", args[1] + "/test-vectors",
 				"--randomSelectionPct", "40", //
-				"--overwrite", "--sequenceFiles" });
+				"--overwrite", "--sequenceFiles", "-xm", "sequential"
+		// "-mro", "mroOutput"
+				});
 
 		ToolRunner.run(conf, new TrainNaiveBayesJob(), new String[] { "-i",
 				args[1] + "/train-vectors", //

@@ -13,9 +13,7 @@ public class FeatureExtractorReducer extends Reducer<Text, Text, Text, Text> {
 	public void reduce(Text feat, Iterable<Text> labels, Context context)
 			throws IOException, InterruptedException {
 		Map<String, AtomicInteger> counts = new HashMap<>();
-		int count = 0;
 		for (Text textLabel : labels) {
-			count++;
 			String label = textLabel.toString();
 			AtomicInteger a = counts.get(label);
 			if (a == null)
@@ -23,31 +21,35 @@ public class FeatureExtractorReducer extends Reducer<Text, Text, Text, Text> {
 			else
 				a.incrementAndGet();
 		}
-		if (count > 100) {
-			// TODO move this threshold to conf
 
-			// see if any class is more represented
+		// see if any class is more represented
 
-			double bestScore = 0;
-			double allCounts = 0;
-			double totalLabels = counts.size();
+		double bestScore = 0;
+		double allCounts = 0;
+		double totalLabels = 0;
 
-			for (AtomicInteger a : counts.values())
-				allCounts += a.get();
-
-			for (String label : counts.keySet()) {
-				double labelCounts = counts.get(label).get();
-				double score = (labelCounts - allCounts / totalLabels)
-						/ allCounts;
-				score = Math.sqrt(score * score);
-				if (score > bestScore)
-					bestScore = score;
-			}
-
-			System.out.println(feat.toString() + "\t" + bestScore);
-			if (bestScore > 0.25)
-				// TODO move this threshold to conf
-				context.write(feat, new Text(Double.toString(bestScore)));
+		for (AtomicInteger a : counts.values()) {
+			allCounts += a.get();
+			if (a.get() >= 100)
+				totalLabels++;
 		}
+
+		for (String label : counts.keySet()) {
+			double labelCounts = counts.get(label).get();
+
+			// TODO move this threshold to conf
+			if (labelCounts < 100)
+				continue;
+
+			double score = (labelCounts - allCounts / totalLabels) / allCounts;
+			score = Math.abs(score);
+			if (score > bestScore)
+				bestScore = score;
+		}
+
+		System.out.println(feat.toString() + "\t" + bestScore);
+		if (bestScore > 0.25)
+			// TODO move this threshold to conf
+			context.write(feat, new Text(Double.toString(bestScore)));
 	}
 }
