@@ -48,7 +48,8 @@ public class FeatureVectorizerMapper extends
 
 			int index = 0;
 			while (line != null) {
-				featToPos.put(line, index);
+				String[] parts = line.split("\\s+");
+				featToPos.put(parts[0], index);
 				index++;
 				line = br.readLine();
 			}

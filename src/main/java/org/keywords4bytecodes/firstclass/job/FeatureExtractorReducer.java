@@ -45,7 +45,7 @@ public class FeatureExtractorReducer extends Reducer<Text, Text, Text, Text> {
 			}
 
 			System.out.println(feat.toString() + "\t" + bestScore);
-			if (bestScore > 0.1)
+			if (bestScore > 0.25)
 				// TODO move this threshold to conf
 				context.write(feat, new Text(Double.toString(bestScore)));
 		}
