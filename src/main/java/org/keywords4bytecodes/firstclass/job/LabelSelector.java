@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -12,33 +13,25 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
-public class FeatureSelector {
+public class LabelSelector {
 
 	public static Job buildJob(Configuration conf, String[] args)
 			throws IOException {
 		Path inputPath = new Path(args[0]);
-		Path targetLabelsPath = new Path(args[1]);
-		Path outputDir = new Path(args[2]);
-
-		FileSystem fs = FileSystem.get(conf);
-
-		if (!fs.exists(targetLabelsPath)) {
-			System.err.println("Labels file must exist: " + args[2]);
-			System.exit(1);
-		}
-		conf.set(AbstractMapperWithFeatureGenerator.TARGET_LABELS_PARAM,
-				args[1]);
+		Path outputDir = new Path(args[1]);
 
 		// Create job
-		Job job = Job.getInstance(conf, "FeatureSelector");
-		job.setJarByClass(FeatureSelector.class);
+		Job job = Job.getInstance(conf, "LabelSelector");
+		job.setJarByClass(LabelSelector.class);
 
 		// Setup MapReduce
-		job.setMapperClass(FeatureExtractorMapper.class);
-		job.setReducerClass(FeatureExtractorReducer.class);
-		// job.setNumReduceTasks(1);
+		job.setMapperClass(LabelFeatureCounterMapper.class);
+		job.setReducerClass(LabelFeatureCounterReducer.class);
+		job.setNumReduceTasks(1);
 
 		// Specify key / value
+		job.setMapOutputKeyClass(Text.class);
+		job.setMapOutputValueClass(IntWritable.class);
 		job.setOutputKeyClass(Text.class);
 		job.setOutputValueClass(Text.class);
 
@@ -56,7 +49,7 @@ public class FeatureSelector {
 	public static void main(String[] args) throws IOException,
 			InterruptedException, ClassNotFoundException {
 
-		Path outputDir = new Path(args[2]);
+		Path outputDir = new Path(args[1]);
 
 		// Create configuration
 		Configuration conf = new Configuration(true);
@@ -68,6 +61,7 @@ public class FeatureSelector {
 		conf.set("fs.file.impl",
 				org.apache.hadoop.fs.LocalFileSystem.class.getName());
 
+		// Create job
 		Job job = buildJob(conf, args);
 
 		// Delete output if exists
