@@ -21,7 +21,7 @@ public class FeatureVectorizerMapper extends
 		String[] parts = value.toString().split("\\t+");
 
 		if (!targetLabels.contains(parts[0]))
-			return;
+			parts[0] = OTHER;
 
 		Map<String, AtomicInteger> table = new HashMap<>();
 		for (int i = 1; i < parts.length; i++)
