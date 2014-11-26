@@ -1,43 +1,35 @@
-keywords4bytecodes
-==================
+keywords4bytecodes - mahout branch
+==================================
 
-Code behind the keywords4bytecodes.org project.
+Predict the first word in a Java method from its bytecodes.
+
+Case study for http://aprendizajengrande.net
 
 
+Running the code
+----------------
 
-Generating the corpus of bytecodes / comments
----------------------------------------------
+*you need to have Mahout 1.0 installed from source in your local repo,
+configured for Hadoop 2.0, see below*
 
-This can be done only in a Debian-compatible GNU/Linux system with a Debian mirror in ./debian-mirror.
+mvn clean package assembly:single
 
-Packages that need to be installed
+Then run the hadoop job org.keywords4bytecodes.firstclass.Driver
+pointing to the tsv file training file (see below) and an output
+directory.
 
-* openjdk
-* libdox-java
-* jclassinfo
-* apt-file
-* (eclipse)
+Getting the data
+----------------
 
-Compile the eclipse project under workspace. (You will need to have
-the package libqdox-java.)
+An extract of the bytecodes and first word in a Java method is available at
 
-Get the packages with jar files:
+http://aprendizajengrande.net/clases/material/firstclass_training20120314.tsv.bz2 (24Mb, 251Mb decompressed, 357k instances)
 
-  apt-file search --package-only .jar > packages-with-jar
 
-Get their source packages
+Installing Mahout from source
+-----------------------------
 
-  for i in `cat packages-with-jars`; do dpkg-query -p $i | perl -ne 'chomp; ($k,$v)=m/^([^:]+): (.*)$/; if($k eq "Source"){print "\t$v"};if($k eq "Filename"){print "\t$v\n"}' >> packages.tsv; done
-
-Process all the relevant source packages in packages.tsv using create-corpus.pl:
-
-  cat packages.tsv | ./create-corpus.pl > corpus.tsv
-
-The final output will have a method per line, with the following <TAB> delimited columns:
-
-* full class name
-* method signature (from bytecode)
-* long method signature (from source code)
-* comment
-* [each byte code separated by a <TAB>...]
+$ git clone https://github.com/apache/mahout.git
+$ cd mahout
+$ mvn clean package -DskipTests -Drelease -Dmahout.skip.distribution=false -Dhadoop.profile=200 -Dhadoop2.version=2.4.1 -Dhbase.version=0.98.0-hadoop2
 
