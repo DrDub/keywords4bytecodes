@@ -5,6 +5,14 @@ Predict the first word in a Java method from its bytecodes.
 
 Case study for http://aprendizajengrande.net
 
+Getting the code
+----------------
+
+<pre>
+$ git clone https://github.com/DrDub/keywords4bytecodes.git
+$ cd keywords4bytecodes
+$ git checkout mahout
+</pre>
 
 Running the code
 ----------------
