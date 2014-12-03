@@ -37,7 +37,8 @@ http://aprendizajengrande.net/clases/material/firstclass_training20120314.tsv.bz
 Installing Mahout from source
 -----------------------------
 
+<pre>
 $ git clone https://github.com/apache/mahout.git
 $ cd mahout
-$ mvn clean package -DskipTests -Drelease -Dmahout.skip.distribution=false -Dhadoop.profile=200 -Dhadoop2.version=2.4.1 -Dhbase.version=0.98.0-hadoop2
-
+$ mvn clean package install -DskipTests -Dhadoop.profile=200 -Dhadoop2.version=2.4.1 -Dhbase.version=0.98.0-hadoop2
+</pre>
