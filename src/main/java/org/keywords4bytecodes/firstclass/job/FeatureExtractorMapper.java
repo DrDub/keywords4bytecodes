@@ -18,12 +18,12 @@ public class FeatureExtractorMapper extends
 
 		String[] parts = value.toString().split("\\t+");
 		Map<String, AtomicInteger> table = new HashMap<>();
-		for (int i = 1; i < parts.length; i++)
+		for (int i = 2; i < parts.length; i++)
 			generator.extract(parts[i], table);
 
 		for (Map.Entry<String, AtomicInteger> e : table.entrySet()) {
 			feature.set(e.getKey());
-			labelAndCounts.set(parts[0] + " " + e.getValue().get());
+			labelAndCounts.set(labeler.extract(parts[1]) + " " + e.getValue().get());
 			context.write(feature, labelAndCounts);
 		}
 	}

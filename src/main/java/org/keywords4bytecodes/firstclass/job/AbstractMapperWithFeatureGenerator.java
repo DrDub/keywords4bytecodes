@@ -4,9 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -14,6 +12,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.keywords4bytecodes.firstclass.FeatureGenerator;
+import org.keywords4bytecodes.firstclass.LabelGenerator;
 
 public class AbstractMapperWithFeatureGenerator<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 		extends Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
@@ -22,13 +21,10 @@ public class AbstractMapperWithFeatureGenerator<KEYIN, VALUEIN, KEYOUT, VALUEOUT
 
 	public static final String TARGET_LABELS_PARAM = "TargetLabels";
 
-	public static final String OTHER = "K4B_OTHER";
-
 	protected Map<String, Integer> featToPos = new HashMap<>();
 
-	protected Set<String> targetLabels = new HashSet<>();
-
 	protected FeatureGenerator generator;
+	protected LabelGenerator labeler;
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -57,9 +53,8 @@ public class AbstractMapperWithFeatureGenerator<KEYIN, VALUEIN, KEYOUT, VALUEOUT
 		this.generator = new FeatureGenerator(featToPos.keySet());
 
 		String targetLabelsName = conf.get(TARGET_LABELS_PARAM);
-		if (targetLabelsName != null)
-			targetLabels.addAll(readLabelCounts(conf).keySet());
-
+		this.labeler = targetLabelsName == null ? new LabelGenerator()
+				: new LabelGenerator(readLabelCounts(conf).keySet());
 	}
 
 	public static Map<String, int[]> readLabelCounts(Configuration conf)
@@ -68,7 +63,7 @@ public class AbstractMapperWithFeatureGenerator<KEYIN, VALUEIN, KEYOUT, VALUEOUT
 		FileSystem fs = FileSystem.get(conf);
 		Map<String, int[]> result = new HashMap<>();
 		int[] other = new int[2];
-		result.put(OTHER, other);
+		result.put(LabelGenerator.OTHER, other);
 
 		if (targetLabelsName != null) {
 			Path labelsPath = new Path(targetLabelsName);

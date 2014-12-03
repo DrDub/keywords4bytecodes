@@ -20,14 +20,13 @@ public class FeatureVectorizerMapper extends
 			throws IOException, InterruptedException {
 		String[] parts = value.toString().split("\\t+");
 
-		if (!targetLabels.contains(parts[0]))
-			parts[0] = OTHER;
+		String instanceLabel = labeler.extract(parts[1]);
 
 		Map<String, AtomicInteger> table = new HashMap<>();
-		for (int i = 1; i < parts.length; i++)
+		for (int i = 2; i < parts.length; i++)
 			generator.extract(parts[i], table);
 
-		label.set(parts[0]);
+		label.set(instanceLabel);
 		Vector v = new RandomAccessSparseVector(featToPos.size());
 		for (Map.Entry<String, AtomicInteger> e : table.entrySet())
 			v.set(featToPos.get(e.getKey()), e.getValue().get());

@@ -33,23 +33,25 @@ public class Driver {
 			fs.delete(output, true);
 		}
 		fs.mkdirs(output);
-		Path trainTextFolder = new Path(args[1] + "/train");
-		Path testTextFolder = new Path(args[1] + "/test");
-		fs.mkdirs(trainTextFolder);
-		fs.mkdirs(testTextFolder);
 		String trainText = args[1] + "/train/" + input.getName();
 		String testText = args[1] + "/test/" + input.getName();
-		SplitInput split = new SplitInput();
-		split.setMapRedOutputDirectory(new Path(args[1] + "/split"));
-		split.setTrainingOutputDirectory(trainTextFolder);
-		split.setTestOutputDirectory(testTextFolder);
-		split.setTestSplitPct(20);
-		split.splitFile(input);
-		// new SplitInput().run(new String[] { "-i", args[0], //
-		// "--trainingOutput", trainText, //
-		// "--testOutput", testText, //
-		// "--randomSelectionPct", "20", //
-		// "--overwrite", "-xm", "sequential" });
+
+		if (args.length > 2) {
+			trainText = args[0];
+			testText = args[2];
+		} else {
+			Path trainTextFolder = new Path(args[1] + "/train");
+			Path testTextFolder = new Path(args[1] + "/test");
+			fs.mkdirs(trainTextFolder);
+			fs.mkdirs(testTextFolder);
+
+			SplitInput split = new SplitInput();
+			split.setMapRedOutputDirectory(new Path(args[1] + "/split"));
+			split.setTrainingOutputDirectory(trainTextFolder);
+			split.setTestOutputDirectory(testTextFolder);
+			split.setTestSplitPct(20);
+			split.splitFile(input);
+		}
 
 		// compute labels from train
 		String labelsFolder = args[1] + "/labels";

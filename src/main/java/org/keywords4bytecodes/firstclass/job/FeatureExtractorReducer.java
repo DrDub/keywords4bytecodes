@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.keywords4bytecodes.firstclass.LabelGenerator;
 
 public class FeatureExtractorReducer extends Reducer<Text, Text, Text, Text> {
 
@@ -34,7 +35,7 @@ public class FeatureExtractorReducer extends Reducer<Text, Text, Text, Text> {
 			String[] parts = labelAndCount.toString().split("\\s");
 			String label = parts[0];
 			if (!this.labelCounts.containsKey(label))
-				label = AbstractMapperWithFeatureGenerator.OTHER;
+				label = LabelGenerator.OTHER;
 			int count = Integer.parseInt(parts[1]);
 			AtomicInteger a = instanceCounts.get(label);
 			if (a == null) {
@@ -64,6 +65,8 @@ public class FeatureExtractorReducer extends Reducer<Text, Text, Text, Text> {
 			// with the feature and with the label
 			o11 = instanceCounts.containsKey(label) ? instanceCounts.get(label)
 					.get() : 0;
+			if (o11 < 50) // skip label if two few positive data
+				continue;
 			// with the feature and without the label
 			o12 = rowCount - o11;
 			// without the feature and with the label
@@ -80,7 +83,7 @@ public class FeatureExtractorReducer extends Reducer<Text, Text, Text, Text> {
 			}
 		}
 
-		if (bestScore > 1800)
+		if (bestScore > 7.88) // 1800)
 			// TODO move this threshold to conf
 			context.write(feat, new Text("" + bestScore + " " + bestLabel));
 	}
