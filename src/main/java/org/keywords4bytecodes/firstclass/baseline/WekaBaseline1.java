@@ -28,10 +28,11 @@ import weka.core.DenseInstance;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.converters.ArffSaver;
+import weka.core.converters.Saver;
 
 public class WekaBaseline1 {
 
-    private static final int TOP_TERMS = 10;
+    private static final int TOP_TERMS = 30;
     private static final int SEQ_LENGTH = 28;
 
     private static final String PADDING = "PADDING";
@@ -44,8 +45,9 @@ public class WekaBaseline1 {
     private static Map<String, Integer> vocabToPos = null;
     private static int paddingPos = 0;
 
-    private static double SAMPLE_TRAIN = 0.5;
-    private static boolean BINARY = true;
+    private static double SAMPLE_TRAIN = 0.1;
+    private static boolean BINARY = false;
+    private static int CLASSIFIERS = 10;
 
     private static double[] seqToFeats(int[] seq) {
         double[] v = new double[attToPos.size()];
@@ -62,6 +64,70 @@ public class WekaBaseline1 {
         return v;
     }
 
+    private static List<Pair<String, int[]>> readRawData(String filename) throws FileNotFoundException, IOException {
+        List<Pair<String, int[]>> rawdata = new ArrayList<>();
+
+        BufferedReader br = new BufferedReader(new FileReader(filename));
+
+        String line = br.readLine();
+        Map<String, List<int[]>> thisClassRows = new HashMap<>();
+        while (line != null) {
+            if (line.equals("")) {
+                // separate wrappers from methods
+                for (Map.Entry<String, List<int[]>> e : thisClassRows.entrySet()) {
+                    String shortName = e.getKey().replaceFirst("\\_.*", "").replaceFirst("[A-Z].*", "");
+                    if (shortName.startsWith("<") || !shortName.matches(".*[a-z].*"))
+                        continue;
+
+                    int maxLenIdx = -1;
+                    int maxLen = -1;
+                    for (int i = 0; i < e.getValue().size(); i++)
+                        if (e.getValue().get(i).length > maxLen) {
+                            maxLen = e.getValue().get(i).length;
+                            maxLenIdx = i;
+                        }
+                    for (int i = 0; i < e.getValue().size(); i++)
+                        if (i == maxLenIdx)
+                            rawdata.add(Pair.of(shortName, e.getValue().get(i)));
+                        else
+                            rawdata.add(Pair.of(WRAPPER, e.getValue().get(i)));
+                }
+                thisClassRows.clear();
+            } else if (line.indexOf(' ') > 0 && !line.startsWith("<")) {
+                String[] parts = line.split(" ");
+                if (parts.length > 1) {
+                    String name = null;
+                    List<Integer> seq = new ArrayList<Integer>();
+
+                    boolean first = true;
+                    for (String part : parts) {
+                        if (first) {
+                            name = part;
+                            first = false;
+                        } else {
+                            if (part.length() > 0) {
+                                Integer pos = vocabToPos.get(part);
+                                if (pos == null)
+                                    pos = paddingPos;
+                                seq.add(pos);
+                            }
+                        }
+                    }
+                    int[] seqArr = new int[seq.size()];
+                    for (int i = 0; i < seqArr.length; i++)
+                        seqArr[i] = seq.get(i);
+                    if (!thisClassRows.containsKey(name))
+                        thisClassRows.put(name, new ArrayList<int[]>());
+                    thisClassRows.get(name).add(seqArr);
+                }
+            }
+
+            line = br.readLine();
+        }
+        br.close();
+        return rawdata;
+    }
+    
     public static void main(String[] args) throws Exception {
 
         // first pass, determine vocabulary
@@ -170,7 +236,7 @@ public class WekaBaseline1 {
 
         rawdata = readRawData(args[0]);
 
-        // full model on other vs. named (incl. wrapper)
+        // full model
         ArrayList<Attribute> attInfo = new ArrayList<>();
         attToPos = new HashMap<String, Integer>();
         // nominal for beginning sq
@@ -199,55 +265,60 @@ public class WekaBaseline1 {
 
         System.out.println("Row size: " + attInfo.size());
 
-        // assemble train set
-        Instances trainset = new Instances("isNamed", attInfo, useful);
-        trainset.setClassIndex(attInfo.size() - 1);
+        RandomForest[] rfs = new RandomForest[CLASSIFIERS];
+
         Random sampler = new Random(1993);
+        for (int cn = 0; cn < CLASSIFIERS; cn++) {
 
-        for (Pair<String, int[]> p : rawdata) {
-            if (sampler.nextFloat() < SAMPLE_TRAIN)
-                continue;
+            // assemble train set
+            Instances trainset = new Instances(BINARY ? "isNamed" : "Verb", attInfo, useful);
+            trainset.setClassIndex(attInfo.size() - 1);
 
-            double[] instV = seqToFeats(p.getRight());
-            if (BINARY)
-                instV[instV.length - 1] = termToPos.containsKey(p.getLeft()) ? 1.0 : 0.0;
-            else
-                instV[instV.length - 1] = (double) (termToPos.containsKey(p.getLeft()) ? termToPos.get(p.getLeft())
-                        : otherPos);
+            for (Pair<String, int[]> p : rawdata) {
+                if (sampler.nextFloat() > SAMPLE_TRAIN)
+                    continue;
 
-            Instance inst = new DenseInstance(1.0, instV);
-            inst.setDataset(trainset);
-            trainset.add(inst);
+                double[] instV = seqToFeats(p.getRight());
+                if (BINARY)
+                    instV[instV.length - 1] = termToPos.containsKey(p.getLeft()) ? 1.0 : 0.0;
+                else
+                    instV[instV.length - 1] = (double) (termToPos.containsKey(p.getLeft()) ? termToPos.get(p.getLeft())
+                            : otherPos);
+
+                Instance inst = new DenseInstance(1.0, instV);
+                inst.setDataset(trainset);
+                trainset.add(inst);
+            }
+
+//            ArffSaver saver = new ArffSaver();
+//            saver.setFile(new File("/tmp/train" + cn + ".arff"));
+//            saver.setInstances(trainset);
+//            saver.writeBatch();
+
+            System.out.println(new Date() + " about to build classifier for " + trainset.size() + " instances...");
+            rfs[cn] = new RandomForest();
+            rfs[cn].setSeed(1993);
+            // rf.setNumExecutionSlots(1);
+    rfs[cn].buildClassifier(trainset);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+
+//            ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("/tmp/rf" + cn + ".ser"));
+//            oos.writeObject(rfs[cn]);
+//            oos.close();
         }
-
-        ArffSaver saver = new ArffSaver();
-        saver.setFile(new File("/tmp/train.arff"));
-        saver.setInstances(trainset);
-        saver.writeBatch();
-
-        System.out.println(new Date() + " about to build classifier for " + trainset.size() + " instances...");
-        RandomForest rf = new RandomForest();
-        rf.setSeed(1993);
-        // rf.setNumExecutionSlots(1);
-        rf.buildClassifier(trainset);
-
-        ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("/tmp/rf.ser"));
-        oos.writeObject(rf);
-        oos.close();
 
         rawdata = null;
         List<Pair<String, int[]>> testdata = readRawData(args[1]);
 
-        Instances testset = new Instances("isNamed", attInfo, testdata.size());
+        Instances testset = new Instances(BINARY ? "isNamed" : "Verb", attInfo, testdata.size());
         testset.setClassIndex(attInfo.size() - 1);
         System.out.println(new Date() + " about to test classifier on " + testdata.size() + " instances...");
         int tp = 0, tn = 0, fp = 0, fn = 0;
-        Map<String, int[]> recAtThr = new HashMap<>();
-        for (String term : termToPos.keySet())
-            recAtThr.put(term, new int[termToPos.size()]);
+        int [][]recAtThr = new int[termToPos.size()][];
         int[][] confTables = new int[termToPos.size()][];
-        for (int i = 0; i < confTables.length; i++)
+        for (int i = 0; i < confTables.length; i++){
             confTables[i] = new int[confTables.length];
+            recAtThr[i] = new int[confTables.length];
+        }
 
         for (Pair<String, int[]> p : testdata) {
             double[] instV = seqToFeats(p.getRight());
@@ -255,7 +326,13 @@ public class WekaBaseline1 {
             inst.setDataset(testset);
             inst.setClassMissing();
             if (BINARY) {
-                double clazz = rf.classifyInstance(inst);
+                double clazz = 0.0;
+                for (int cn = 0; cn < CLASSIFIERS; cn++)
+                    clazz += rfs[cn].classifyInstance(inst);
+                if (clazz > CLASSIFIERS / 2.0)
+                    clazz = 1.0;
+                else
+                    clazz = 0.0;
                 String trueClass = termToPos.containsKey(p.getLeft()) ? "named" : "OTHER";
 
                 if (trueClass.equals("OTHER")) {
@@ -271,7 +348,13 @@ public class WekaBaseline1 {
                 }
                 inst.setClassValue(trueClass);
             } else {
-                double[] dist = rf.distributionForInstance(inst);
+                double[] dist = new double[termToPos.size()];
+                for (int cn = 0; cn < CLASSIFIERS; cn++) {
+                    double[] thisDist = rfs[cn].distributionForInstance(inst);
+                    for (int j = 0; j < dist.length; j++)
+                        dist[j] += thisDist[j];
+                }
+
                 String trueClass = termToPos.containsKey(p.getLeft()) ? p.getLeft() : OTHER;
 
                 int correct = termToPos.get(trueClass);
@@ -289,14 +372,14 @@ public class WekaBaseline1 {
                 }
                 confTables[correct][betterIdx]++;
                 for (int i = biggerThanCorrect; i < termToPos.size(); i++)
-                    recAtThr.get(trueClass)[i]++;
+                    recAtThr[correct][i]++;
 
                 inst.setClassValue(trueClass);
             }
 
             testset.add(inst);
         }
-        saver = new ArffSaver();
+        Saver saver = new ArffSaver();
         saver.setFile(new File("/tmp/test.arff"));
         saver.setInstances(testset);
         saver.writeBatch();
@@ -342,7 +425,7 @@ public class WekaBaseline1 {
                 double prec = 1.0 * tp / (tp + fp);
                 double rec = 1.0 * tp / (tp + fn);
 
-                System.out.println(posToTerm.get(i) + " " + tp + " " + fp + "\n" + fn + " " + tn + " prec = " + prec
+                System.out.println(posToTerm.get(i) + " " + tp + " " + fp + " " + fn + " " + tn + " prec = " + prec
                         + " rec = " + rec + " F = " + (2.0 * prec * rec / (prec + rec)));
             }
 
@@ -351,80 +434,16 @@ public class WekaBaseline1 {
                 if (i == 0) {
                     System.out.print("N");
                     for (int j = 0; j < confTables.length; j++)
-                        System.out.print(" " + (i + 1));
+                        System.out.print(" " + (j + 1));
                     System.out.println();
                 }
 
-                System.out.println(posToTerm.get(i));
-                int[] rec = recAtThr.get(i);
+                System.out.print(posToTerm.get(i));
+                int[] rec = recAtThr[i];
                 for (int j = 0; j < confTables.length; j++)
                     System.out.print(" " + (rec[j] * 1.0 / rec[rec.length - 1]));
                 System.out.println();
             }
         }
-    }
-
-    private static List<Pair<String, int[]>> readRawData(String filename) throws FileNotFoundException, IOException {
-        List<Pair<String, int[]>> rawdata = new ArrayList<>();
-
-        BufferedReader br = new BufferedReader(new FileReader(filename));
-
-        String line = br.readLine();
-        Map<String, List<int[]>> thisClassRows = new HashMap<>();
-        while (line != null) {
-            if (line.equals("")) {
-                // separate wrappers from methods
-                for (Map.Entry<String, List<int[]>> e : thisClassRows.entrySet()) {
-                    String shortName = e.getKey().replaceFirst("\\_.*", "").replaceFirst("[A-Z].*", "");
-                    if (shortName.startsWith("<") || !shortName.matches(".*[a-z].*"))
-                        continue;
-
-                    int maxLenIdx = -1;
-                    int maxLen = -1;
-                    for (int i = 0; i < e.getValue().size(); i++)
-                        if (e.getValue().get(i).length > maxLen) {
-                            maxLen = e.getValue().get(i).length;
-                            maxLenIdx = i;
-                        }
-                    for (int i = 0; i < e.getValue().size(); i++)
-                        if (i == maxLenIdx)
-                            rawdata.add(Pair.of(shortName, e.getValue().get(i)));
-                        else
-                            rawdata.add(Pair.of(WRAPPER, e.getValue().get(i)));
-                }
-                thisClassRows.clear();
-            } else if (line.indexOf(' ') > 0 && !line.startsWith("<")) {
-                String[] parts = line.split(" ");
-                if (parts.length > 1) {
-                    String name = null;
-                    List<Integer> seq = new ArrayList<Integer>();
-
-                    boolean first = true;
-                    for (String part : parts) {
-                        if (first) {
-                            name = part;
-                            first = false;
-                        } else {
-                            if (part.length() > 0) {
-                                Integer pos = vocabToPos.get(part);
-                                if (pos == null)
-                                    pos = paddingPos;
-                                seq.add(pos);
-                            }
-                        }
-                    }
-                    int[] seqArr = new int[seq.size()];
-                    for (int i = 0; i < seqArr.length; i++)
-                        seqArr[i] = seq.get(i);
-                    if (!thisClassRows.containsKey(name))
-                        thisClassRows.put(name, new ArrayList<int[]>());
-                    thisClassRows.get(name).add(seqArr);
-                }
-            }
-
-            line = br.readLine();
-        }
-        br.close();
-        return rawdata;
     }
 }
