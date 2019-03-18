@@ -10,7 +10,7 @@ Generating the corpus of bytecodes / comments
 
 This can be done only in a Debian-compatible GNU/Linux system with a Debian mirror in ./debian-mirror.
 
-Packages that need to be installed
+Packages that need to be installed:
 
 * openjdk
 * libdox-java
